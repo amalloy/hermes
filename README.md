@@ -1,13 +1,15 @@
-# websocket
+# hermes
 
-A Clojure library designed to ... well, that part is up to you.
+A dead simple service for pushing events to a web browser.
 
 ## Usage
 
-FIXME
+    lein run
+
+## Sending events
+
+    http 'localhost:8800/message/ninjudd:jazzhands' 'message:={"x":1}'
 
 ## License
-
-Copyright © 2013 FIXME
 
 Distributed under the Eclipse Public License, the same as Clojure.

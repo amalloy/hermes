@@ -1,4 +1,4 @@
-var ws = new WebSocket("ws://ifrit:8008/")
+var ws = new WebSocket("ws://localhost:8008/")
 var callbacks = {}
 
 ws.onopen = function() {
