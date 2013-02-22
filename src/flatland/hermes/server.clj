@@ -33,7 +33,7 @@
         http (start-http-server
               (-> (routes (PUT "/:topic" {:keys [params body-params]}
                                (send (:topic params) body-params)
-                               {:status 204})
+                               {:status 200 :body "OK"})
                           (fn [req]
                             {:status 404}))
                   wrap-keyword-params
