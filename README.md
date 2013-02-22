@@ -4,6 +4,7 @@ A dead simple service for pushing events to a web browser.
 
 ## Usage
 
+    brew install leiningen
     lein run
 
 ## Sending events
