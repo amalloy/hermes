@@ -1,0 +1,65 @@
+<html>
+<head>
+  <title>Hermes Test</title>
+
+  <script type="text/javascript" src='../js/hermes.js'></script>
+  <script type="text/javascript" src='http://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js'></script>
+  <script type="text/javascript">
+    $(document).ready(function(){
+      $.hermes        = new Hermes({ server: 'localhost:8008' });
+      var topic       = 'inbox-count';
+      var $subscribe  = $('.sub');
+ 
+      $subscribe.click(function(){
+        var $this = $(this)
+
+        $this.fadeOut(200);
+        $.hermes.subscribe(topic, function(e){
+          $this.parent().find('.counter').text(e.data.num)
+        })
+      })
+
+      // Click the first one for fun.
+      $subscribe.first().click();
+
+    });
+
+  </script>
+
+  <style type="text/css">
+    .wrap     { padding: 10px; display: inline-block; }
+    .wrap *   { float: left; clear:left; margin: 0 auto; display: block; margin: 5px;  }
+    .counter{ 
+      padding: 10px 29px;
+      color: white; 
+      background: red; 
+      border-radius: 5px;
+      text-align: center;
+      font-size: 20px;
+    }
+  </style>
+
+</head>
+<body>
+
+  <h1>hermes.js - Notification Example</h1>
+
+  <pre>
+    <code>
+      # With lein server running, from your command line:
+      http 'localhost:8800/message/inbox-count' 'message:={"num":100}'
+    </code>
+  </pre>
+
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+  <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
+
+
+
+</body>
+</html>
