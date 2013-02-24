@@ -2,10 +2,20 @@
 
 A dead simple service for pushing events to a web browser.
 
-## Usage
+## Usage - Server
 
     brew install leiningen
     lein run
+
+## Usage - Client
+
+```javascript
+  var h = new Hermes();
+  h.subscribe('ninjudd:jazzhands', function(e){
+    // Do something with the payload...
+    console.log(e.data)
+  })
+```
 
 ## Sending events
 
