@@ -19,7 +19,22 @@ h.subscribe('ninjudd:jazzhands', function(e){
 
 ## Sending events
 
-    http 'localhost:8800/message/ninjudd:jazzhands' 'message:={"x":1}'
+    curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count'
+
+# Examples
+
+1. Start up your lein server 
+2. In root of the Hermes repo, fire up a little server to serve our example files:
+
+```shell
+python -m SimpleHTTPServer
+```
+
+3. Point your browser to `http://localhost:8000/examples/`
+4. Send an event: `curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count`
+
+# Websockets Polyfill
+A note on testing the Flash polyfill for Websockets 
 
 ## License
 

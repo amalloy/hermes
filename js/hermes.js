@@ -13,16 +13,17 @@ function Hermes(opts){
   }
 
   this.onConnectionOpen = function(){
-    for (var s in this.unboundSubscriptions) {
-      this.subscriptions[s] = true;
-      this.ws.send(s)
+    for (var s in self.unboundSubscriptions) {
+      self.subscriptions[s] = true;
+      self.ws.send(s)
     }
-  }.bind(this)
+  }
 
   this.onServerMessage = function(e){
     var msg = JSON.parse(e.data);
+    msg.event = e; 
     HermesEvents.publish( "hermes-msg:" + msg.topic, [msg])
-  }.bind(this);
+  }
 
   this.subscribe = function(topic, callback){
     if ( this.ws.readyState !== 1 ){

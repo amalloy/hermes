@@ -1,15 +1,32 @@
+<!DOCTYPE html>
 <html>
 <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Hermes Test</title>
 
-  <script type="text/javascript" src='../js/hermes.js'></script>
+  <!-- Import Javascript libraries -->
+  <script type="text/javascript" src='/js/hermes.js'></script>
   <script type="text/javascript" src='http://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js'></script>
+
+  <script type="text/javascript" src='/examples/ws-polyfill/swfobject.js'></script>
+  <script type="text/javascript" src='/examples/ws-polyfill/web_socket.js'></script>
+
+  <!-- Javascript -->
   <script type="text/javascript">
+
+    // Let the library know where WebSocketMain.swf is:
+    WEB_SOCKET_SWF_LOCATION = "ws-polyfill/WebSocketMain.swf";
+    WEB_SOCKET_DEBUG = true;
+
     $(document).ready(function(){
-      $.hermes        = new Hermes({ server: 'localhost:8008' });
+
+      // Instantiate the Hermes object
+      $.hermes        = new Hermes({ server: '192.168.1.104:8008' });
       var topic       = 'inbox-count';
+      
+      // Setup subscriptions for those notification boxes
+      // that actually subscribe. 
       var $subscribe  = $('.sub');
- 
       $subscribe.click(function(){
         var $this = $(this)
 
@@ -19,13 +36,13 @@
         })
       })
 
-      // Click the first one for fun.
+      // Click (subscribe) the first one for fun.
       $subscribe.first().click();
 
     });
-
   </script>
 
+  <!-- Styles -->
   <style type="text/css">
     .wrap     { padding: 10px; display: inline-block; }
     .wrap *   { float: left; clear:left; margin: 0 auto; display: block; margin: 5px;  }
@@ -47,7 +64,7 @@
   <pre>
     <code>
       # With lein server running, from your command line:
-      http 'localhost:8800/message/inbox-count' 'message:={"num":100}'
+      curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count
     </code>
   </pre>
 
