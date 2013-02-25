@@ -24,4 +24,17 @@ class Hermes
   ensure
     @key = old
   end
+
+  def self.default(default = nil)
+    @default = hermes if default
+    @default ||= Hermes.new
+  end
+
+  def self.publish(*args, &block)
+    default.publish(*args, &block)
+  end
+
+  def self.with_key(key, &block)
+    default.with_key(key, &block)
+  end
 end
