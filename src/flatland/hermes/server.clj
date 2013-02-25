@@ -19,13 +19,16 @@
   (trace* key {:topic key :data message}))
 
 (defn -main [& args]
-  (def websocket-server (start-http-server topic-listener {:port 8008 :websocket true}))
-  (def send-server (start-http-server (wrap-ring-handler
-                                       (wrap-json-params
-                                        (wrap-keyword-params
-                                         (routes (POST "/message/:topic" [topic message]
-                                                   (send topic message)
-                                                   {:status 204})
-                                                 (fn [req]
-                                                   {:status 404})))))
-                                      {:port 8800})))
+  (def websocket-server
+    (start-http-server topic-listener {:port 8008 :websocket true}))
+  (def send-server
+    (start-http-server
+     (-> (routes (POST "/message/:topic" {:keys [params body-params]}
+                       (send (:topic params) body-params)
+                       {:status 204})
+                 (fn [req]
+                   {:status 404}))
+         wrap-keyword-params
+         wrap-json-params
+         wrap-ring-handler)
+     {:port 8800})))
