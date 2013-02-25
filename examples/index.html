@@ -21,7 +21,7 @@
     $(document).ready(function(){
 
       // Instantiate the Hermes object
-      $.hermes        = new Hermes({ server: 'localhost:8008' });
+      $.hermes        = new Hermes({ server: 'localhost:2959' });
       var topic       = 'inbox-count';
       
       // Setup subscriptions for those notification boxes
@@ -64,7 +64,7 @@
   <pre>
     <code>
       # With hermes server running, from your command line:
-      curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count
+      curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count
     </code>
   </pre>
 
