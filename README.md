@@ -17,6 +17,12 @@ h.subscribe('ninjudd:jazzhands', function(e){
 })
 ```
 
+Hermes takes an optional `key` parameter at instantiation time, which can be used for additional security:
+```javascript
+var h = new Hermes({ server: 'localhost:8008', key: 'my-secret-key' });
+```
+
+
 ## Sending events
 
     curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count'
