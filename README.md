@@ -25,7 +25,7 @@ var h = new Hermes({ server: 'localhost:8008', key: 'my-secret-key' });
 
 ## Sending events
 
-    curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count'
+    curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count'
 
 # Examples
 
@@ -37,7 +37,7 @@ python -m SimpleHTTPServer
 ```
 
 3. Point your browser to `http://localhost:8000/examples/`
-4. Send an event: `curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count`
+4. Send an event: `curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count`
 
 # Websockets Polyfill
 A note on [using the Flash polyfill for Websockets](https://github.com/flatland/hermes/wiki/Websocket-Polyfill). 

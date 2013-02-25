@@ -21,7 +21,7 @@
     $(document).ready(function(){
 
       // Instantiate the Hermes object
-      $.hermes        = new Hermes({ server: '192.168.1.104:8008' });
+      $.hermes        = new Hermes({ server: 'localhost:2959' });
       var topic       = 'inbox-count';
       
       // Setup subscriptions for those notification boxes
@@ -63,8 +63,8 @@
 
   <pre>
     <code>
-      # With lein server running, from your command line:
-      curl -v -H "Content-Type: application/json" -X POST -d '{"num":1}' 'localhost:8800/message/inbox-count
+      # With hermes server running, from your command line:
+      curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count
     </code>
   </pre>
 
@@ -75,8 +75,6 @@
   <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
   <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
   <span class='wrap'> <button class='sub'>Subscribe</button> <span class='counter'>0</span></span>
-
-
 
 </body>
 </html>

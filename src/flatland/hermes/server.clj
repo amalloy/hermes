@@ -6,6 +6,14 @@
         lamina.core aleph.http
         lamina.trace aleph.formats))
 
+(def default-websocket-port
+  "The port on which hermes accepts message subscriptions."
+  2959)
+
+(def default-http-port
+  "The port on which hermes listens for incoming messages."
+  2960)
+
 (defn topic-listener [ch handshake]
   (receive-all ch
     (fn [topic]
@@ -18,14 +26,21 @@
 (defn send [key message]
   (trace* key {:topic key :data message}))
 
-(defn -main [& args]
-  (def websocket-server (start-http-server topic-listener {:port 8008 :websocket true}))
-  (def send-server (start-http-server (wrap-ring-handler
-                                       (wrap-json-params
-                                        (wrap-keyword-params
-                                         (routes (POST "/message/:topic" [topic message]
-                                                   (send topic message)
-                                                   {:status 204})
-                                                 (fn [req]
-                                                   {:status 404})))))
-                                      {:port 8800})))
+(defn init [{:keys [http-port websocket-port] :as config}]
+  (let [websocket (start-http-server topic-listener
+                                     {:port (or websocket-port default-websocket-port)
+                                      :websocket true})
+        http (start-http-server
+              (-> (routes (PUT "/message/:topic" {:keys [params body-params]}
+                               (send (:topic params) body-params)
+                               {:status 204})
+                          (fn [req]
+                            {:status 404}))
+                  wrap-keyword-params
+                  wrap-json-params
+                  wrap-ring-handler)
+              {:port (or http-port default-http-port)})]
+    {:shutdown (fn shutdown []
+                 (websocket)
+                 (http))
+     :config config}))
