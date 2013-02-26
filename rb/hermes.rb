@@ -23,6 +23,14 @@ class Hermes
     http.put(escape_topic(topic), data)
   end
 
+  def ns(&block)
+    if block
+      @default_ns = block
+    else
+      @ns || (@default_ns && @default_ns.call)
+    end
+  end
+
   def namespace(ns)
     @ns, old = ns, @ns
     yield
