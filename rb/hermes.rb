@@ -12,10 +12,15 @@ class Hermes
     end
   end
 
+  def escape_topic(topic)
+    # Faraday does not like colons in your url.
+    URI.escape(topic).gsub(':', '%3A')
+  end
+
   def publish(topic, data={}, &block)
     data = block.call if block
     topic = "#{ns}#{topic}" if ns
-    http.put(URI.escape(topic), data)
+    http.put(escape_topic(topic), data)
   end
 
   def namespace(ns)
