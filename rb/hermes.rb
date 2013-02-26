@@ -3,30 +3,46 @@ require 'faraday'
 require 'faraday_middleware'
 
 class Hermes
-  attr_reader :http, :key
+  attr_reader :http, :ns
 
-  def initialize(url = 'http://localhost:2960/message')
+  def initialize(url = 'http://localhost:2960')
     @http = Faraday.new(:url => url) do |faraday|
       faraday.request :json
       faraday.adapter Faraday.default_adapter
     end
   end
 
-  def publish(topic, data={}, &block)
-    data = block.call if block
-    topic = "#{key}:#{topic}" if key
-    http.put(topic, data)
+  def escape_topic(topic)
+    # Faraday does not like colons in your url.
+    URI.escape(topic).gsub(':', '%3A')
   end
 
-  def with_key(key)
-    @key, old = key, @key
+  def publish(topic, absolute, data = nil, &block)
+    # absolute is an optional argument
+    data, absolute = absolute, nil if data.nil? and block.nil?
+
+    data = block.call if block
+    topic = "#{ns}#{topic}" if ns and not absolute
+    http.put(escape_topic(topic), data)
+  end
+
+  def ns(&block)
+    if block
+      @default_ns = block
+    else
+      @ns || (@default_ns && @default_ns.call)
+    end
+  end
+
+  def namespace(ns)
+    @ns, old = ns, @ns
     yield
   ensure
-    @key = old
+    @ns = old
   end
 
   def self.default(default = nil)
-    @default = hermes if default
+    @default = Hermes.new(default) if default
     @default ||= Hermes.new
   end
 
@@ -34,7 +50,7 @@ class Hermes
     default.publish(*args, &block)
   end
 
-  def self.with_key(key, &block)
-    default.with_key(key, &block)
+  def self.namespace(ns, &block)
+    default.namespace(ns, &block)
   end
 end

@@ -4,13 +4,13 @@ function Hermes(opts){
   var self = this;
   this.initialize = function(opts){
     this.server               = opts.server;
-    this.namespace            = opts.key || '';
+    this.namespace            = opts.namespace || '';
     this.subscriptions        = {};
     this.unboundSubscriptions = {};
 
-    this.ws               = new WebSocket("ws://" + this.server);
-    this.ws.onmessage     = this.onServerMessage;
-    this.ws.onopen        = this.onConnectionOpen;
+    this.ws           = new WebSocket(this.server);
+    this.ws.onmessage = this.onServerMessage;
+    this.ws.onopen    = this.onConnectionOpen;
   }
 
   this.onConnectionOpen = function(){
@@ -26,7 +26,12 @@ function Hermes(opts){
     HermesEvents.publish( "hermes-msg:" + msg.topic, [msg])
   }
 
-  this.subscribe = function(topic, callback){
+  this.subscribe = function(topic, absolute, callback){
+      
+    // "absolute" is optional, which bypasses namespacing
+    topic     = (absolute && callback) ? topic : this.namespace + topic;
+    callback  = callback || absolute;
+
     if ( this.ws.readyState !== 1 ){
       if ( !this.unboundSubscriptions[topic] ){
         this.unboundSubscriptions[topic] = true;
@@ -34,7 +39,7 @@ function Hermes(opts){
     }
     else if ( !this.subscriptions[topic] ) {
       this.subscriptions[topic] = true;
-      this.ws.send( this.namespace + topic );
+      this.ws.send( topic );
     }
 
     HermesEvents.subscribe("hermes-msg:" + topic, callback) 

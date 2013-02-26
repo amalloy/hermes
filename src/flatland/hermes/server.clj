@@ -23,15 +23,15 @@
                       events)
                 ch)))))
 
-(defn send [key message]
-  (trace* key {:topic key :data message}))
+(defn send [topic message]
+  (trace* topic {:topic topic :data message}))
 
 (defn init [{:keys [http-port websocket-port] :as config}]
   (let [websocket (start-http-server topic-listener
                                      {:port (or websocket-port default-websocket-port)
                                       :websocket true})
         http (start-http-server
-              (-> (routes (PUT "/message/:topic" {:keys [params body-params]}
+              (-> (routes (PUT "/:topic" {:keys [params body-params]}
                                (send (:topic params) body-params)
                                {:status 204})
                           (fn [req]
