@@ -31,7 +31,7 @@
                                      {:port (or websocket-port default-websocket-port)
                                       :websocket true})
         http (start-http-server
-              (-> (routes (PUT "/message/:topic" {:keys [params body-params]}
+              (-> (routes (PUT "/:topic" {:keys [params body-params]}
                                (send (:topic params) body-params)
                                {:status 204})
                           (fn [req]

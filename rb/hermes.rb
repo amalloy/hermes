@@ -5,7 +5,7 @@ require 'faraday_middleware'
 class Hermes
   attr_reader :http, :ns
 
-  def initialize(url = 'http://localhost:2960/message')
+  def initialize(url = 'http://localhost:2960')
     @http = Faraday.new(:url => url) do |faraday|
       faraday.request :json
       faraday.adapter Faraday.default_adapter
