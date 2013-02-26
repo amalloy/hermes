@@ -15,7 +15,7 @@ class Hermes
   def publish(topic, data={}, &block)
     data = block.call if block
     topic = "#{ns}#{topic}" if ns
-    http.put(topic, data)
+    http.put(URI.escape(topic), data)
   end
 
   def namespace(ns)
