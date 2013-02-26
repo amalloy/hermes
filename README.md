@@ -33,7 +33,7 @@ gonzo.subscribe('message', function(e){
 To bypass namespacing once added, set the second argument of `subscribe` to _true_:
 ```javascript
 var namespaced = new Hermes({ server: 'ws://localhost:2959', namespace: 'ninjudd:' });
-ninjudd.subscribe('alert', true, function(e){
+namespace.subscribe('alert', true, function(e){
   // All alerts
 })
 ```
