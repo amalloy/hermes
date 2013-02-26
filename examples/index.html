@@ -21,7 +21,7 @@
     $(document).ready(function(){
 
       // Instantiate the Hermes object
-      $.hermes = new Hermes({ server: 'localhost:2959', namespace: 'ninjudd:' });
+      $.hermes = new Hermes({ server: 'ws://localhost:2959', namespace: 'ninjudd:' });
       var topic = 'inbox-count';
       
       // Setup subscriptions for those notification boxes

@@ -10,7 +10,7 @@ A dead simple service for pushing events to a web browser.
 ## Usage - Client
 
 ```javascript
-var h = new Hermes({ server: 'localhost:8008' });
+var h = new Hermes({ server: 'ws://localhost:2959' });
 h.subscribe('jazzhands', function(e){
   // Do something with the payload...
   console.log(e.data)
@@ -19,12 +19,12 @@ h.subscribe('jazzhands', function(e){
 
 Hermes takes an optional `namespace` parameter at instantiation time:
 ```javascript
-var ninjudd = new Hermes({ server: 'localhost:8008', namespace: 'ninjudd:' });
+var ninjudd = new Hermes({ server: 'ws://localhost:2959', namespace: 'ninjudd:' });
 ninjudd.subscribe('alert', function(e){
   // Alerts for ninjudd
 })
 
-var gonzo = new Hermes({ server: 'localhost:8008', namespace: 'gonzo:' });
+var gonzo = new Hermes({ server: 'ws://localhost:2959', namespace: 'gonzo:' });
 gonzo.subscribe('message', function(e){
   // Messages for gonzo
 })

@@ -8,9 +8,9 @@ function Hermes(opts){
     this.subscriptions        = {};
     this.unboundSubscriptions = {};
 
-    this.ws               = new WebSocket("ws://" + this.server);
-    this.ws.onmessage     = this.onServerMessage;
-    this.ws.onopen        = this.onConnectionOpen;
+    this.ws           = new WebSocket(this.server);
+    this.ws.onmessage = this.onServerMessage;
+    this.ws.onopen    = this.onConnectionOpen;
   }
 
   this.onConnectionOpen = function(){
