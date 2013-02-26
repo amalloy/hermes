@@ -4,7 +4,7 @@ function Hermes(opts){
   var self = this;
   this.initialize = function(opts){
     this.server               = opts.server;
-    this.namespace            = opts.key || '';
+    this.namespace            = opts.namespace || '';
     this.subscriptions        = {};
     this.unboundSubscriptions = {};
 
@@ -27,6 +27,8 @@ function Hermes(opts){
   }
 
   this.subscribe = function(topic, callback){
+    topic = this.namespace + topic;
+
     if ( this.ws.readyState !== 1 ){
       if ( !this.unboundSubscriptions[topic] ){
         this.unboundSubscriptions[topic] = true;
@@ -34,7 +36,7 @@ function Hermes(opts){
     }
     else if ( !this.subscriptions[topic] ) {
       this.subscriptions[topic] = true;
-      this.ws.send( this.namespace + topic );
+      this.ws.send( topic );
     }
 
     HermesEvents.subscribe("hermes-msg:" + topic, callback) 
