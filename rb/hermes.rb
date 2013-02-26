@@ -17,9 +17,12 @@ class Hermes
     URI.escape(topic).gsub(':', '%3A')
   end
 
-  def publish(topic, data={}, &block)
+  def publish(topic, absolute, data = nil, &block)
+    # absolute is an optional argument
+    data, absolute = absolute, nil if data.nil?
+
     data = block.call if block
-    topic = "#{ns}#{topic}" if ns
+    topic = "#{ns}#{topic}" if ns and not absolute
     http.put(escape_topic(topic), data)
   end
 
