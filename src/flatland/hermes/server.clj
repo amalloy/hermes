@@ -23,8 +23,8 @@
                       events)
                 ch)))))
 
-(defn send [key message]
-  (trace* key {:topic key :data message}))
+(defn send [topic message]
+  (trace* topic {:topic topic :data message}))
 
 (defn init [{:keys [http-port websocket-port] :as config}]
   (let [websocket (start-http-server topic-listener
