@@ -3,7 +3,7 @@ require 'faraday'
 require 'faraday_middleware'
 
 class Hermes
-  attr_reader :http, :key
+  attr_reader :http, :ns
 
   def initialize(url = 'http://localhost:2960/message')
     @http = Faraday.new(:url => url) do |faraday|
@@ -14,19 +14,19 @@ class Hermes
 
   def publish(topic, data={}, &block)
     data = block.call if block
-    topic = "#{key}:#{topic}" if key
+    topic = "#{ns}#{topic}" if ns
     http.put(topic, data)
   end
 
-  def with_key(key)
-    @key, old = key, @key
+  def namespace(ns)
+    @ns, old = ns, @ns
     yield
   ensure
-    @key = old
+    @ns = old
   end
 
   def self.default(default = nil)
-    @default = hermes if default
+    @default = Hermes.new(default) if default
     @default ||= Hermes.new
   end
 
@@ -34,7 +34,7 @@ class Hermes
     default.publish(*args, &block)
   end
 
-  def self.with_key(key, &block)
-    default.with_key(key, &block)
+  def self.namespace(ns, &block)
+    default.namespace(ns, &block)
   end
 end
