@@ -19,7 +19,7 @@ class Hermes
 
   def publish(topic, absolute, data = nil, &block)
     # absolute is an optional argument
-    data, absolute = absolute, nil if data.nil?
+    data, absolute = absolute, nil if data.nil? and block.nil?
 
     data = block.call if block
     topic = "#{ns}#{topic}" if ns and not absolute
