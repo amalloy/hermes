@@ -17,9 +17,17 @@ h.subscribe('ninjudd:jazzhands', function(e){
 })
 ```
 
-Hermes takes an optional `key` parameter at instantiation time, which can be used for additional security:
+Hermes takes an optional `namespace` parameter at instantiation time:
 ```javascript
-var h = new Hermes({ server: 'localhost:8008', key: 'my-secret-key' });
+var hm = new Hermes({ server: 'localhost:8008', namespace: 'musical:' });
+hm.subscribe('ninjudd:jazzhands', function(e){
+  // Messages about musical jazzhands...
+})
+
+var hc = new Hermes({ server: 'localhost:8008', namespace: 'cheerleading:' });
+hc.subscribe('ninjudd:jazzhands', function(e){
+  // Messages about cheerleading jazzhands...
+})
 ```
 
 
