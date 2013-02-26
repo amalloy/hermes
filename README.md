@@ -11,7 +11,7 @@ A dead simple service for pushing events to a web browser.
 
 ```javascript
 var h = new Hermes({ server: 'localhost:8008' });
-h.subscribe('ninjudd:jazzhands', function(e){
+h.subscribe('jazzhands', function(e){
   // Do something with the payload...
   console.log(e.data)
 })
@@ -19,21 +19,20 @@ h.subscribe('ninjudd:jazzhands', function(e){
 
 Hermes takes an optional `namespace` parameter at instantiation time:
 ```javascript
-var hm = new Hermes({ server: 'localhost:8008', namespace: 'musical:' });
-hm.subscribe('ninjudd:jazzhands', function(e){
-  // Messages about musical jazzhands...
+var ninjudd = new Hermes({ server: 'localhost:8008', namespace: 'ninjudd:' });
+ninjudd.subscribe('alert', function(e){
+  // Alerts for ninjudd
 })
 
-var hc = new Hermes({ server: 'localhost:8008', namespace: 'cheerleading:' });
-hc.subscribe('ninjudd:jazzhands', function(e){
-  // Messages about cheerleading jazzhands...
+var gonzo = new Hermes({ server: 'localhost:8008', namespace: 'gonzo:' });
+gonzo.subscribe('message', function(e){
+  // Messages for gonzo
 })
 ```
 
-
 ## Sending events
 
-    curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count'
+    curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/inbox-count'
 
 # Examples
 
@@ -45,7 +44,7 @@ python -m SimpleHTTPServer
 ```
 
 3. Point your browser to `http://localhost:8000/examples/`
-4. Send an event: `curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/message/inbox-count`
+4. Send an event: `curl -v -H "Content-Type: application/json" -X PUT -d '{"num":1}' 'localhost:2960/inbox-count`
 
 # Websockets Polyfill
 A note on [using the Flash polyfill for Websockets](https://github.com/flatland/hermes/wiki/Websocket-Polyfill). 
