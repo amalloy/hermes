@@ -26,8 +26,11 @@ function Hermes(opts){
     HermesEvents.publish( "hermes-msg:" + msg.topic, [msg])
   }
 
-  this.subscribe = function(topic, callback){
-    topic = this.namespace + topic;
+  this.subscribe = function(topic, absolute, callback){
+      
+    // "absolute" is optional, which bypasses namespacing
+    topic     = (absolute && callback) ? topic : this.namespace + topic;
+    callback  = callback || absolute;
 
     if ( this.ws.readyState !== 1 ){
       if ( !this.unboundSubscriptions[topic] ){
