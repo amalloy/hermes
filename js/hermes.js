@@ -14,7 +14,6 @@ function Hermes(opts){
   }
 
   this.onConnectionOpen = function(){
-    console.log('** Hermes connection open.')
     for (var s in self.unboundSubscriptions) {
       self.subscriptions[s] = true;
       self.ws.send(s);
