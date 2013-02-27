@@ -23,5 +23,8 @@
 (defn add-numbered-message [buffer message current-num min-to-keep]
   (add-message buffer [current-num message] #(< (first %) min-to-keep)))
 
-(defn current-numbered-messages [buffer]
+(defn messages-with-numbers [buffer]
+  (current-messages buffer))
+
+(defn messages-without-numbers [buffer]
   (map second (current-messages buffer)))
