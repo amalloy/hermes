@@ -43,7 +43,7 @@
                                 (apply lamina/closed-channel
                                        (for [[timestamp blob] messages
                                              :when (re-matches regex (:topic blob))]
-                                         [timestamp (assoc blob :subscription topic)]))))
+                                         [timestamp blob]))))
                  :task-queue q, :payload second :timestamp first})]
     (lamina/siphon (trace/subscribe router topic {})
                    channel)
@@ -56,12 +56,14 @@
           (lamina/siphon ch))
       (receive-all ch
                    (fn [topic]
-                     (let [events (subscribe local-trace-router topic {})]
+                     (let [before-topics (lamina/channel)
+                           events (subscribe local-trace-router topic {})]
                        (siphon (map* (fn [obj]
                                        (assoc obj :subscription topic))
-                                     events)
+                                     before-topics)
                                outgoing)
-                       (replay-recent config outgoing topic)))))))
+                       (siphon events before-topics)
+                       (replay-recent config before-topics topic)))))))
 
 (defn init [{:keys [http-port websocket-port message-retention] :as config}]
   (let [config (assoc config
