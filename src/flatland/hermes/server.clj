@@ -18,58 +18,61 @@
   "The port on which hermes listens for incoming messages."
   2960)
 
-(def recent-messages (q/numbered-message-buffer))
-(def message-retention "Number of milliseconds to save old messages for"
+(def default-message-retention
+  "Number of milliseconds to save old messages for"
   5000)
 
-(defn send [topic message]
+(defn send [config topic message]
   (let [blob {:topic topic :data message}
         now (System/currentTimeMillis)]
-    (q/add-numbered-message recent-messages blob now (- now message-retention))
+    (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
     (trace* topic blob)))
 
-(defn all-recent-messages []
-  (q/messages-with-numbers recent-messages))
+(defn all-recent-messages [config]
+  (q/messages-with-numbers (:recent config)))
 
-(defn glob-matches? [s glob]
-  (re-matches (re-pattern (s/replace glob "*" ".*"))
-              s))
+(defn glob->regex [glob]
+  (re-pattern (s/replace glob "*" ".*")))
 
-(defn replay-recent [channel topic]
-  (let [messages (all-recent-messages)
+(defn replay-recent [config channel topic]
+  (let [messages (all-recent-messages config)
         q (lamina.time/non-realtime-task-queue)
         router (trace/trace-router
                 {:generator (fn [{:strs [pattern]}]
-                              (apply lamina/closed-channel
-                                     (for [[timestamp blob] messages
-                                           :when (glob-matches? (:topic blob)
-                                                                pattern)]
-                                       [timestamp (assoc blob :subscription topic)])))
+                              (let [regex (glob->regex pattern)]
+                                (apply lamina/closed-channel
+                                       (for [[timestamp blob] messages
+                                             :when (re-matches regex (:topic blob))]
+                                         [timestamp (assoc blob :subscription topic)]))))
                  :task-queue q, :payload second :timestamp first})]
     (lamina/siphon (trace/subscribe router topic {})
                    channel)
     (lamina.time/advance-until q (first (last messages)))))
 
-(defn topic-listener [ch handshake]
-  (let [outgoing (lamina/channel)]
-    (-> (lamina/map* encode-json->string outgoing)
-        (lamina/siphon ch))
-    (receive-all ch
-                 (fn [topic]
-                   (let [events (subscribe local-trace-router topic {})]
-                     (siphon (map* (fn [obj]
-                                     (assoc obj :subscription topic))
-                                   events)
-                             outgoing)
-                     (replay-recent outgoing topic))))))
+(defn topic-listener [config]
+  (fn [ch handshake]
+    (let [outgoing (lamina/channel)]
+      (-> (lamina/map* encode-json->string outgoing)
+          (lamina/siphon ch))
+      (receive-all ch
+                   (fn [topic]
+                     (let [events (subscribe local-trace-router topic {})]
+                       (siphon (map* (fn [obj]
+                                       (assoc obj :subscription topic))
+                                     events)
+                               outgoing)
+                       (replay-recent config outgoing topic)))))))
 
-(defn init [{:keys [http-port websocket-port] :as config}]
-  (let [websocket (start-http-server topic-listener
+(defn init [{:keys [http-port websocket-port message-retention] :as config}]
+  (let [config (assoc config
+                 :recent (q/numbered-message-buffer)
+                 :retention (or message-retention default-message-retention))
+        websocket (start-http-server (topic-listener config)
                                      {:port (or websocket-port default-websocket-port)
                                       :websocket true})
         http (start-http-server
               (-> (routes (PUT "/:topic" {:keys [params body-params]}
-                               (send (:topic params) body-params)
+                               (send config (:topic params) body-params)
                                {:status 200 :body "OK\n"})
                           (fn [req]
                             {:status 404}))
