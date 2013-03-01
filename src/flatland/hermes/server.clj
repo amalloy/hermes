@@ -46,9 +46,9 @@
                 {:generator (fn [{:strs [pattern]}]
                               (let [regex (glob->regex pattern)]
                                 (apply lamina/closed-channel
-                                       (for [[timestamp blob] messages
-                                             :when (re-matches regex (:topic blob))]
-                                         [timestamp blob]))))
+                                       (filter (fn [[timestamp blob]]
+                                                 (re-matches regex (:topic blob)))
+                                               messages))))
                  :task-queue q, :payload second :timestamp first})]
     (lamina/siphon (trace/subscribe router topic {})
                    channel)
