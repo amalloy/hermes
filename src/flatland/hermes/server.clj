@@ -10,6 +10,10 @@
             [lamina.core :as lamina]
             [clojure.string :as s]))
 
+(defn log [config & args]
+  (when (:debug config)
+    (.println System/out (apply format args))))
+
 (def default-websocket-port
   "The port on which hermes accepts message subscriptions."
   2959)
@@ -25,6 +29,7 @@
 (defn send [config topic message]
   (let [blob {:topic topic :data message}
         now (System/currentTimeMillis)]
+    (log config "Received new message %s" (pr-str blob))
     (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
     (trace* topic blob)))
 
@@ -51,19 +56,24 @@
 
 (defn topic-listener [config]
   (fn [ch handshake]
-    (let [outgoing (lamina/channel)]
-      (-> (lamina/map* encode-json->string outgoing)
-          (lamina/siphon ch))
-      (receive-all ch
-                   (fn [topic]
-                     (let [before-topics (lamina/channel)
-                           events (subscribe local-trace-router topic {})]
-                       (siphon (map* (fn [obj]
-                                       (assoc obj :subscription topic))
-                                     before-topics)
-                               outgoing)
-                       (siphon events before-topics)
-                       (replay-recent config before-topics topic)))))))
+    (let [client-ip (:remote-addr handshake)]
+      (log config "Incoming connection from %s" client-ip)
+      (let [outgoing (lamina/channel)]
+        (-> (lamina/map* encode-json->string outgoing)
+            (lamina/siphon ch))
+        (lamina/receive-all outgoing
+                            (fn [msg]
+                              (log config "Sending %s to %s" (pr-str msg) client-ip)))
+        (receive-all ch
+                     (fn [topic]
+                       (let [before-topics (lamina/channel)
+                             events (subscribe local-trace-router topic {})]
+                         (siphon (map* (fn [obj]
+                                         (assoc obj :subscription topic))
+                                       before-topics)
+                                 outgoing)
+                         (siphon events before-topics)
+                         (replay-recent config before-topics topic))))))))
 
 (defn init [{:keys [http-port websocket-port message-retention] :as config}]
   (let [config (assoc config

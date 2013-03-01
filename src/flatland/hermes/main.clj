@@ -3,4 +3,4 @@
 
 (defn main [& args]
   (def server
-    (hermes/init {})))
+    (hermes/init {:debug true})))
