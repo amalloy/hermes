@@ -56,24 +56,24 @@
 
 (defn topic-listener [config]
   (fn [ch handshake]
-    (let [client-ip (:remote-addr handshake)]
+    (let [client-ip (:remote-addr handshake)
+          outgoing (lamina/channel)]
       (log config "Incoming connection from %s" client-ip)
-      (let [outgoing (lamina/channel)]
-        (-> (lamina/map* encode-json->string outgoing)
-            (lamina/siphon ch))
-        (lamina/receive-all outgoing
-                            (fn [msg]
-                              (log config "Sending %s to %s" (pr-str msg) client-ip)))
-        (receive-all ch
-                     (fn [topic]
-                       (let [before-topics (lamina/channel)
-                             events (subscribe local-trace-router topic {})]
-                         (siphon (map* (fn [obj]
-                                         (assoc obj :subscription topic))
-                                       before-topics)
-                                 outgoing)
-                         (siphon events before-topics)
-                         (replay-recent config before-topics topic))))))))
+      (-> outgoing
+          (->> (lamina/map* (fn [msg]
+                              (log config "Sending %s to %s" (pr-str msg) client-ip)
+                              (encode-json->string msg))))
+          (lamina/siphon ch))
+      (receive-all ch
+                   (fn [topic]
+                     (let [before-topics (lamina/channel)
+                           events (subscribe local-trace-router topic {})]
+                       (siphon (map* (fn [obj]
+                                       (assoc obj :subscription topic))
+                                     before-topics)
+                               outgoing)
+                       (siphon events before-topics)
+                       (replay-recent config before-topics topic)))))))
 
 (defn init [{:keys [http-port websocket-port message-retention] :as config}]
   (let [config (assoc config
