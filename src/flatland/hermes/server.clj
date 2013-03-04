@@ -57,11 +57,12 @@
 (defn topic-listener [config]
   (fn [ch handshake]
     (let [client-ip (:remote-addr handshake)
+          log (partial log config)
           outgoing (lamina/channel)]
-      (log config "Incoming connection from %s" client-ip)
+      (log "Incoming connection from %s" client-ip)
       (-> outgoing
           (->> (lamina/map* (fn [msg]
-                              (log config "Sending %s to %s" (pr-str msg) client-ip)
+                              (log "Sending %s to %s" (pr-str msg) client-ip)
                               (encode-json->string msg))))
           (lamina/siphon ch))
       (receive-all ch
