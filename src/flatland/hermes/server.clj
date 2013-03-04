@@ -67,6 +67,7 @@
           (lamina/siphon ch))
       (receive-all ch
                    (fn [topic]
+                     (log "%s subscribed to %s" client-ip topic)
                      (let [before-topics (lamina/channel)
                            events (subscribe local-trace-router topic {})]
                        (siphon (map* (fn [obj]
