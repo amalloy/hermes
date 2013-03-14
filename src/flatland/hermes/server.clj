@@ -34,7 +34,8 @@
     (trace* topic blob)))
 
 (defn all-recent-messages [config]
-  (q/messages-with-numbers (:recent config)))
+  (q/messages-with-numbers (:recent config) (- (System/currentTimeMillis)
+                                               (:retention config))))
 
 (defn glob->regex [glob]
   (re-pattern (s/replace glob "*" ".*")))
