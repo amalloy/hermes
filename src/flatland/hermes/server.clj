@@ -89,7 +89,19 @@
                        (siphon events before-topics)
                        (replay-recent config before-topics topic)))))))
 
-(defn init [{:keys [http-port websocket-port message-retention] :as config}]
+(defn heartbeat-worker [{:keys [heartbeat heartbeat-ms] :or {heartbeat true,
+                                                             heartbeat-ms (* 60 1000)}
+                         :as config}]
+  (if-not heartbeat
+    (constantly true)
+    (let [worker (future
+                   (while true
+                     (Thread/sleep heartbeat-ms)
+                     (send config "hermes:heartbeat" {:alive true})))]
+      (fn []
+        (future-cancel worker)))))
+
+(defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
   (let [config (assoc config
                  :recent (q/numbered-message-buffer)
                  :retention (or message-retention default-message-retention))
@@ -105,8 +117,10 @@
                   wrap-keyword-params
                   wrap-json-params
                   wrap-ring-handler)
-              {:port (or http-port default-http-port)})]
+              {:port (or http-port default-http-port)})
+        heartbeat (heartbeat-worker config)]
     {:shutdown (fn shutdown []
+                 (heartbeat)
                  (websocket)
                  (http))
      :config config}))
