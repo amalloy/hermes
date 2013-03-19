@@ -11,6 +11,7 @@ function Hermes(opts){
     this.ws           = new WebSocket(this.server);
     this.ws.onmessage = this.onServerMessage;
     this.ws.onopen    = this.onConnectionOpen;
+    this.ws.onclose   = this.onConnectionClose;
   }
 
   this.onConnectionOpen = function(){
@@ -18,6 +19,11 @@ function Hermes(opts){
       self.subscriptions[s] = true;
       self.ws.send(s);
     }
+  }
+
+  this.onConnectionClose = function(){
+    if ( console )
+      console.log("[HERMES] Connection to " + this.server + " closed.")
   }
 
   this.onServerMessage = function(e){
