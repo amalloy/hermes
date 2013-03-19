@@ -14,7 +14,7 @@ function Hermes(opts){
     this.ws.onclose   = this.onConnectionClose;
 
     if ( opts.heartbeat != false )
-      this.subscribe("hermes:heartbeat", true, false)
+      this.subscribe("hermes:heartbeat", true, function(){ /* nada */ })
    }
 
   this.onConnectionOpen = function(){
