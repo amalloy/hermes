@@ -12,9 +12,6 @@ function Hermes(opts){
     this.ws.onmessage = this.onServerMessage;
     this.ws.onopen    = this.onConnectionOpen;
     this.ws.onclose   = this.onConnectionClose;
-
-    if ( opts.heartbeat != false )
-      this.subscribe("hermes:heartbeat", true, function(){ /* nada */ })
    }
 
   this.onConnectionOpen = function(){
@@ -30,6 +27,9 @@ function Hermes(opts){
   }
 
   this.onServerMessage = function(e){
+    if (e.data == '')
+        return;
+
     var msg = JSON.parse(e.data);
     msg.event = e; 
     HermesEvents.publish( "hermes-msg:" + msg.subscription, [msg])
