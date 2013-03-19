@@ -60,6 +60,14 @@
                    channel)
     (lamina.time/advance-until q (first (last messages)))))
 
+(defn send-heartbeats [log client-ip ch]
+  (let [heartbeats (subscribe local-trace-router "hermes:heartbeat" {})]
+    (lamina/siphon (->> heartbeats
+                        (lamina/map* (fn [_]
+                                       (log "Sending heartbeat to %s" client-ip)
+                                       "")))
+                   ch)))
+
 (defn topic-listener [config]
   (fn [ch handshake]
     (let [client-ip (:remote-addr handshake)
@@ -67,6 +75,7 @@
           log (partial log config)
           outgoing (lamina/channel)]
       (log "Incoming connection from %s" client-ip)
+      (send-heartbeats log client-ip ch)
       (lamina/on-closed ch #(log "Client %s disconnected" client-ip))
       (-> outgoing
           (->> (lamina/map* (fn [msg]
