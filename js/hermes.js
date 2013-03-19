@@ -23,7 +23,7 @@ function Hermes(opts){
 
   this.onConnectionClose = function(){
     if ( console )
-      console.log("[HERMES] Connection to " + this.server + " closed.")
+      console.log("[HERMES] Connection to " + self.server + " closed.")
   }
 
   this.onServerMessage = function(e){
