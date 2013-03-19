@@ -6,6 +6,7 @@
         lamina.core aleph.http
         lamina.trace aleph.formats)
   (:require [flatland.hermes.queue :as q]
+            [flatland.useful.utils :refer [returning]]
             [lamina.trace :as trace]
             [lamina.core :as lamina]
             [clojure.string :as s]))
@@ -58,6 +59,7 @@
 (defn topic-listener [config]
   (fn [ch handshake]
     (let [client-ip (:remote-addr handshake)
+          subscriptions (ref #{})
           log (partial log config)
           outgoing (lamina/channel)]
       (log "Incoming connection from %s" client-ip)
@@ -69,8 +71,12 @@
       (receive-all ch
                    (fn [topic]
                      (log "%s subscribed to %s" client-ip topic)
-                     (let [before-topics (lamina/channel)
-                           events (subscribe local-trace-router topic {})]
+                     (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
+                                                    (alter subscriptions conj topic)))
+                           before-topics (lamina/channel)
+                           events (if was-subscribed
+                                    (lamina/closed-channel)
+                                    (subscribe local-trace-router topic {}))]
                        (siphon (map* (fn [obj]
                                        (assoc obj :subscription topic))
                                      before-topics)
