@@ -67,6 +67,7 @@
           log (partial log config)
           outgoing (lamina/channel)]
       (log "Incoming connection from %s" client-ip)
+      (lamina/on-closed ch #(log "Client %s disconnected" client-ip))
       (-> outgoing
           (->> (lamina/map* (fn [msg]
                               (log "Sending %s to %s" (pr-str msg) client-ip)
