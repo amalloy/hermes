@@ -12,7 +12,10 @@ function Hermes(opts){
     this.ws.onmessage = this.onServerMessage;
     this.ws.onopen    = this.onConnectionOpen;
     this.ws.onclose   = this.onConnectionClose;
-  }
+
+    if ( opts.heartbeat != false )
+      this.subscribe("hermes:heartbeat", true, false)
+   }
 
   this.onConnectionOpen = function(){
     for (var s in self.unboundSubscriptions) {
