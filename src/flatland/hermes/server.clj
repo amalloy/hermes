@@ -9,11 +9,15 @@
             [flatland.useful.utils :refer [returning]]
             [lamina.trace :as trace]
             [lamina.core :as lamina]
-            [clojure.string :as s]))
+            [clojure.string :as s])
+  (:import (java.text SimpleDateFormat)
+           (java.util Date)))
 
 (defn log [config & args]
   (when (:debug config)
-    (.println System/out (apply format args))))
+    (.println System/out (format "%s - %s"
+                                 (.format (SimpleDateFormat. "HH:mm:ss") (Date.))
+                                 (apply format args)))))
 
 (def default-websocket-port
   "The port on which hermes accepts message subscriptions."
