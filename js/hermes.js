@@ -29,13 +29,12 @@ function Hermes(opts){
   this.onServerMessage = function(e){
     var msg = JSON.parse(e.data);
     msg.event = e; 
-    HermesEvents.publish( "hermes-msg:" + msg.topic, [msg])
+    HermesEvents.publish( "hermes-msg:" + msg.subscription, [msg])
   }
 
   this.subscribe = function(topic, absolute, callback){
-      
-    // "absolute" is optional, which bypasses namespacing
-    topic     = (absolute && callback) ? topic : this.namespace + topic;
+    // absolute is optional, bypasses namespace
+    topic     = (absolute != null && callback != null) ? topic : this.namespace + topic;
     callback  = callback || absolute;
 
     if ( this.ws.readyState !== 1 ){
@@ -43,7 +42,7 @@ function Hermes(opts){
         this.unboundSubscriptions[topic] = true;
       }
     }
-    else if ( !this.subscriptions[topic] ) {
+    else {
       this.subscriptions[topic] = true;
       this.ws.send( topic );
     }
