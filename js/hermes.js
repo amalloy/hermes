@@ -36,7 +36,7 @@ function Hermes(opts){
         this.unboundSubscriptions[topic] = true;
       }
     }
-    else if ( !this.subscriptions[topic] ) {
+    else {
       this.subscriptions[topic] = true;
       this.ws.send( topic );
     }
