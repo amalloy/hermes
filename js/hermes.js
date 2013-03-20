@@ -26,7 +26,6 @@ function Hermes(opts){
   }
 
   this.onServerMessage = function(e){
-    console.log("** server message")
     if (e.data == '')
         return;
 
@@ -60,9 +59,6 @@ window.HermesEvents = (function (){
 
   publish = function (topic, args, scope) {
     if ( cache[topic] ) {
-
-      console.log(_.keys(cache[topic]))
-
       for(var name in cache[topic]){
         cache[topic][name].apply( scope || this, args || []);
       }
