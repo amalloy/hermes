@@ -5,7 +5,7 @@ function Hermes(opts){
   this.initialize = function(opts){
     this.server               = opts.server;
     this.namespace            = opts.namespace || '';
-    this.subscriptions        = {};
+    this.hermesPrepend        = "hermes-msg:"
     this.unboundSubscriptions = {};
 
     this.ws           = new WebSocket(this.server);
@@ -16,41 +16,39 @@ function Hermes(opts){
 
   this.onConnectionOpen = function(){
     for (var s in self.unboundSubscriptions) {
-      self.subscriptions[s] = true;
       self.ws.send(s);
     }
   }
 
   this.onConnectionClose = function(){
     if ( console )
-      console.log("[HERMES] Connection to closed.")
+      console.log("[HERMES] Connection closed.")
   }
 
   this.onServerMessage = function(e){
+    console.log("** server message")
     if (e.data == '')
         return;
 
     var msg = JSON.parse(e.data);
     msg.event = e; 
-    HermesEvents.publish( "hermes-msg:" + msg.subscription, [msg])
+    HermesEvents.publish( self.hermesPrepend + msg.subscription, [msg])
   }
 
-  this.subscribe = function(topic, absolute, callback){
+  this.subscribe = function(topic, absolute, callback, name){
     // absolute is optional, bypasses namespace
     topic     = (absolute != null && callback != null) ? topic : this.namespace + topic;
     callback  = callback || absolute;
+    name      = name || "default";
 
     if ( this.ws.readyState !== 1 ){
-      if ( !this.unboundSubscriptions[topic] ){
-        this.unboundSubscriptions[topic] = true;
-      }
+      this.unboundSubscriptions[topic] = 1;
     }
     else {
-      this.subscriptions[topic] = true;
-      this.ws.send( topic );
+      this.ws.send(topic);
     }
 
-    HermesEvents.subscribe("hermes-msg:" + topic, callback) 
+    HermesEvents.subscribe( this.hermesPrepend + topic, name, callback);
   }
 
   this.initialize(opts);
@@ -61,42 +59,31 @@ window.HermesEvents = (function (){
   var cache = {},
 
   publish = function (topic, args, scope) {
-    if (cache[topic]) {
-      var thisTopic = cache[topic],
-        i = thisTopic.length - 1;
+    if ( cache[topic] ) {
 
-      for (i; i >= 0; i -= 1) {
-        thisTopic[i].apply( scope || this, args || []);
+      console.log(_.keys(cache[topic]))
+
+      for(var name in cache[topic]){
+        cache[topic][name].apply( scope || this, args || []);
       }
     }
   },
 
-  subscribe = function (topic, callback) {
-    if (!cache[topic]) {
-      cache[topic] = [];
-    }
-    cache[topic].push(callback);
-    return [topic, callback];
-  },
+  subscribe = function (topic, name, callback) {
+    if ( !cache[topic] )
+        cache[topic] = {};
 
-  unsubscribe = function (handle, completly) {
-    var t = handle[0],
-      i = cache[t].length - 1;
+    if ( cache[topic][name] )
+      cache[topic][name] = null;
 
-    if (cache[t]) {
-      for (i; i >= 0; i -= 1) {
-        if (cache[t][i] === handle[1]) {
-          cache[t].splice(cache[t][i], 1);
-          if(completly){ delete cache[t]; }
-        }
-      }
-    }
-  };
+    cache[topic][name] = callback;
+    return [topic, name, callback];
+  }
 
   return {
     publish: publish,
     subscribe: subscribe,
-    unsubscribe: unsubscribe
+    cache: cache
   };
 
 }());
