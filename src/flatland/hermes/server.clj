@@ -58,8 +58,8 @@
                                                  (re-matches regex (:topic blob)))
                                                messages))))
                  :task-queue q, :payload second :timestamp first})]
-    (siphon (trace/subscribe router topic {})
-            channel)
+    (-> (trace/subscribe router topic {})
+        (siphon channel))
     (lamina.time/advance-until q (first (last messages)))))
 
 (defn send-heartbeats [log client-ip ch]
@@ -109,7 +109,7 @@
                    (while true
                      (Thread/sleep heartbeat-ms)
                      (send config "hermes:heartbeat" {:alive true})))]
-      (fn []
+      (fn cancel []
         (future-cancel worker)))))
 
 (defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
