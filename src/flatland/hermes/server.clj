@@ -1,15 +1,16 @@
 (ns flatland.hermes.server
   (:refer-clojure :exclude [send])
-  (:use compojure.core
-        ring.middleware.format-params
-        ring.middleware.keyword-params
-        lamina.core aleph.http
-        lamina.trace aleph.formats)
+  (:use ring.middleware.format-params
+        ring.middleware.keyword-params)
   (:require [flatland.hermes.queue :as q]
             [flatland.useful.utils :refer [returning]]
+            [aleph.http :as http]
+            [aleph.formats :as formats]
             [lamina.trace :as trace]
-            [lamina.core :as lamina]
-            [clojure.string :as s])
+            [lamina.core :as lamina :refer [siphon receive-all]]
+            [lamina.time]
+            [clojure.string :as s]
+            [compojure.core :refer [routes PUT]])
   (:import (java.text SimpleDateFormat)
            (java.util Date)))
 
@@ -36,7 +37,7 @@
         now (System/currentTimeMillis)]
     (log config "Received new message %s" (pr-str blob))
     (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
-    (trace* topic blob)))
+    (trace/trace* topic blob)))
 
 (defn all-recent-messages [config]
   (q/messages-with-numbers (:recent config) (- (System/currentTimeMillis)
@@ -56,17 +57,17 @@
                                                  (re-matches regex (:topic blob)))
                                                messages))))
                  :task-queue q, :payload second :timestamp first})]
-    (lamina/siphon (trace/subscribe router topic {})
-                   channel)
+    (siphon (trace/subscribe router topic {})
+            channel)
     (lamina.time/advance-until q (first (last messages)))))
 
 (defn send-heartbeats [log client-ip ch]
-  (let [heartbeats (subscribe local-trace-router "hermes:heartbeat" {})]
-    (lamina/siphon (->> heartbeats
-                        (lamina/map* (fn [_]
-                                       (log "Sending heartbeat to %s" client-ip)
-                                       "")))
-                   ch)))
+  (let [heartbeats (trace/subscribe trace/local-trace-router "hermes:heartbeat" {})]
+    (siphon (->> heartbeats
+                 (lamina/map* (fn [_]
+                                (log "Sending heartbeat to %s" client-ip)
+                                "")))
+            ch)))
 
 (defn topic-listener [config]
   (fn [ch handshake]
@@ -80,8 +81,8 @@
       (-> outgoing
           (->> (lamina/map* (fn [msg]
                               (log "Sending %s to %s" (pr-str msg) client-ip)
-                              (encode-json->string msg))))
-          (lamina/siphon ch))
+                              (formats/encode-json->string msg))))
+          (siphon ch))
       (receive-all ch
                    (fn [topic]
                      (log "%s subscribed to %s" client-ip topic)
@@ -90,10 +91,10 @@
                            before-topics (lamina/channel)
                            events (if was-subscribed
                                     (lamina/closed-channel)
-                                    (subscribe local-trace-router topic {}))]
-                       (siphon (map* (fn [obj]
-                                       (assoc obj :subscription topic))
-                                     before-topics)
+                                    (trace/subscribe trace/local-trace-router topic {}))]
+                       (siphon (lamina/map* (fn [obj]
+                                              (assoc obj :subscription topic))
+                                            before-topics)
                                outgoing)
                        (siphon events before-topics)
                        (replay-recent config before-topics topic)))))))
@@ -114,18 +115,18 @@
   (let [config (assoc config
                  :recent (q/numbered-message-buffer)
                  :retention (or message-retention default-message-retention))
-        websocket (start-http-server (topic-listener config)
-                                     {:port (or websocket-port default-websocket-port)
-                                      :websocket true})
-        http (start-http-server
+        websocket (http/start-http-server (topic-listener config)
+                                          {:port (or websocket-port default-websocket-port)
+                                           :websocket true})
+        http (http/start-http-server
               (-> (routes (PUT "/:topic" {:keys [params body-params]}
-                               (send config (:topic params) body-params)
-                               {:status 200 :body "OK\n"})
+                            (send config (:topic params) body-params)
+                            {:status 200 :body "OK\n"})
                           (fn [req]
                             {:status 404}))
                   wrap-keyword-params
                   wrap-json-params
-                  wrap-ring-handler)
+                  http/wrap-ring-handler)
               {:port (or http-port default-http-port)})
         heartbeat (heartbeat-worker config)]
     {:shutdown (fn shutdown []
