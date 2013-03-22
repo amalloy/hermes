@@ -10,6 +10,7 @@
             [lamina.core :as lamina :refer [siphon receive-all]]
             [lamina.time]
             [clojure.string :as s]
+            [clojure.tools.logging :as log]
             [compojure.core :refer [routes PUT]])
   (:import (java.text SimpleDateFormat)
            (java.util Date)))
@@ -118,6 +119,7 @@
         websocket (http/start-http-server (topic-listener config)
                                           {:port (or websocket-port default-websocket-port)
                                            :websocket true})
+        error-channel (lamina/channel)
         http (http/start-http-server
               (-> (routes (PUT "/:topic" {:keys [params body-params]}
                             (send config (:topic params) body-params)
@@ -127,8 +129,16 @@
                   wrap-keyword-params
                   wrap-json-params
                   http/wrap-ring-handler)
-              {:port (or http-port default-http-port)})
+              {:port (or http-port default-http-port)
+               :probes {:error error-channel}})
         heartbeat (heartbeat-worker config)]
+    (receive-all error-channel
+                 (fn [^Throwable e]
+                   (if (and (instance? java.io.IOException e)
+                            (-> (.getMessage e)
+                                (.contains "reset by peer")))
+                     nil ;; ignore error
+                     (log/error e "Error in websocket server"))))
     {:shutdown (fn shutdown []
                  (heartbeat)
                  (websocket)
