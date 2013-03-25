@@ -114,14 +114,23 @@
       (fn cancel []
         (future-cancel worker)))))
 
+(defn error-channel [server-type]
+  (doto (lamina/channel)
+    (receive-all (fn [^Throwable e]
+                   (if (and (instance? java.io.IOException e)
+                            (-> (.getMessage e)
+                                (.contains "reset by peer")))
+                     nil ;; ignore error
+                     (log/error e (format "Error in %s server" server-type)))))))
+
 (defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
   (let [config (assoc config
                  :recent (q/numbered-message-buffer)
                  :retention (or message-retention default-message-retention))
         websocket (http/start-http-server (topic-listener config)
                                           {:port (or websocket-port default-websocket-port)
-                                           :websocket true})
-        error-channel (lamina/channel)
+                                           :websocket true
+                                           :probes {:error (error-channel "websocket")}})
         http (http/start-http-server
               (-> (routes (PUT "/:topic" {:keys [params body-params]}
                             (send config (:topic params) body-params)
@@ -132,15 +141,8 @@
                   wrap-json-params
                   http/wrap-ring-handler)
               {:port (or http-port default-http-port)
-               :probes {:error error-channel}})
+               :probes {:error (error-channel "http")}})
         heartbeat (heartbeat-worker config)]
-    (receive-all error-channel
-                 (fn [^Throwable e]
-                   (if (and (instance? java.io.IOException e)
-                            (-> (.getMessage e)
-                                (.contains "reset by peer")))
-                     nil ;; ignore error
-                     (log/error e "Error in websocket server"))))
     {:shutdown (fn shutdown []
                  (heartbeat)
                  (websocket)
