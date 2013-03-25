@@ -7,4 +7,5 @@
                  [aleph "0.3.0-beta14"]
                  [compojure "1.1.1"]
                  [ring-middleware-format "0.2.4" :exclusions [ring]]]
+  :jvm-opts ["-Xmx4g"]
   :main flatland.hermes)
