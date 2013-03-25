@@ -84,21 +84,23 @@
                               (log "Sending %s to %s" (pr-str msg) client-ip)
                               (formats/encode-json->string msg))))
           (siphon ch))
-      (receive-all ch
-                   (fn [topic]
-                     (log "%s subscribed to %s" client-ip topic)
-                     (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
-                                                    (alter subscriptions conj topic)))
-                           before-topics (lamina/channel)
-                           events (if was-subscribed
-                                    (lamina/closed-channel)
-                                    (trace/subscribe trace/local-trace-router topic {}))]
-                       (siphon (lamina/map* (fn [obj]
-                                              (assoc obj :subscription topic))
-                                            before-topics)
-                               outgoing)
-                       (siphon events before-topics)
-                       (replay-recent config before-topics topic)))))))
+      (-> ch
+          (->> (lamina/map* formats/bytes->string) ;; some clients erroneously send binary frames
+               (lamina/remove* empty?)) ;; sometimes we get empty frames, which we'll just ignore
+          (receive-all (fn [topic]
+                         (log "%s subscribed to %s" client-ip topic)
+                         (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
+                                                        (alter subscriptions conj topic)))
+                               before-topics (lamina/channel)
+                               events (if was-subscribed
+                                        (lamina/closed-channel)
+                                        (trace/subscribe trace/local-trace-router topic {}))]
+                           (siphon (lamina/map* (fn [obj]
+                                                  (assoc obj :subscription topic))
+                                                before-topics)
+                                   outgoing)
+                           (siphon events before-topics)
+                           (replay-recent config before-topics topic))))))))
 
 (defn heartbeat-worker [{:keys [heartbeat heartbeat-ms] :or {heartbeat true,
                                                              heartbeat-ms (* 60 1000)}
