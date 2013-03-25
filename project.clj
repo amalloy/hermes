@@ -1,4 +1,4 @@
-(defproject org.flatland/hermes "0.1.5"
+(defproject org.flatland/hermes "0.1.6"
   :description "Push notifications for your browser."
   :url "http://github.com/flatland/hermes"
   :license {:name "Eclipse Public License"
