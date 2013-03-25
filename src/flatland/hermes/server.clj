@@ -51,7 +51,7 @@
   (let [messages (all-recent-messages config)
         q (lamina.time/non-realtime-task-queue)
         router (trace/trace-router
-                {:generator (fn [{:strs [pattern]}]
+                {:generator (fn [{:keys [pattern]}]
                               (let [regex (glob->regex pattern)]
                                 (apply lamina/closed-channel
                                        (filter (fn [[timestamp blob]]
