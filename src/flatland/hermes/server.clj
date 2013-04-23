@@ -42,14 +42,20 @@
 (defn subscribe [config topic]
   (subscribe* (:router config) topic))
 
-(defn send [config topic message]
-  (let [blob {:topic topic :data message}
-        now (System/currentTimeMillis)]
-    (log config "Received new message %s" (pr-str blob))
-    (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
-    (let [channel (cache/get-or-create (:cache config) topic #(lamina/close %))]
-      ;; is a no-op if nobody is listening to this topic
-      (lamina/enqueue channel blob))))
+(defn send
+  ([config topic message]
+     (send config topic message nil))
+  ([config topic message publisher-ip]
+     (let [blob {:topic topic :data message}
+           now (System/currentTimeMillis)]
+       (trace/trace :hermes:publish (assoc blob :publisher publisher-ip))
+       (log config "Received new message %s" (apply str (pr-str blob)
+                                                    (when publisher-ip
+                                                      [" from " publisher-ip])))
+       (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
+       (let [channel (cache/get-or-create (:cache config) topic #(lamina/close %))]
+         ;; is a no-op if nobody is listening to this topic
+         (lamina/enqueue channel blob)))))
 
 (defn all-recent-messages [config]
   (q/messages-with-numbers (:recent config) (- (System/currentTimeMillis)
@@ -89,11 +95,15 @@
             subscriptions (ref #{})
             outgoing (lamina/channel)]
         (log* "Incoming connection from %s" client-ip)
+        (trace/trace :hermes:connect {:client client-ip})
         (send-heartbeats config client-ip ch)
-        (lamina/on-closed ch #(log* "Client %s disconnected" client-ip))
+        (lamina/on-closed ch (fn []
+                               (log* "Client %s disconnected" client-ip)
+                               (trace/trace :hermes:disconnect {:client client-ip})))
         (-> outgoing
             (->> (lamina/map* (fn [msg]
                                 (log* "Sending %s to %s" (pr-str msg) client-ip)
+                                (trace/trace :hermes:receive {:client client-ip})
                                 (formats/encode-json->string msg))))
             (siphon ch))
         (-> ch
@@ -101,6 +111,8 @@
                  (lamina/remove* empty?)) ;; sometimes we get empty frames, which we'll just ignore
             (receive-all (fn [topic]
                            (log* "%s subscribed to %s" client-ip topic)
+                           (trace/trace :hermes:subscribe {:client client-ip
+                                                           :topic topic})
                            (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
                                                           (alter subscriptions conj topic)))
                                  before-topics (lamina/channel)
@@ -150,8 +162,8 @@
                                            :websocket true
                                            :probes {:error (error-channel "websocket")}})
         http (http/start-http-server
-              (-> (routes (PUT "/:topic" {:keys [params body-params]}
-                            (send config (:topic params) body-params)
+              (-> (routes (PUT "/:topic" {:keys [params body-params remote-addr]}
+                            (send config (:topic params) body-params remote-addr)
                             {:status 200 :body "OK\n"})
                           (fn [req]
                             {:status 404}))
