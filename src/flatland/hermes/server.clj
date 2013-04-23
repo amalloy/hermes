@@ -7,7 +7,9 @@
             [aleph.http :as http]
             [aleph.formats :as formats]
             [lamina.trace :as trace]
+            [lamina.trace.router :as router]
             [lamina.core :as lamina :refer [siphon receive-all]]
+            [lamina.cache :as cache]
             [lamina.time]
             [clojure.string :as s]
             [clojure.tools.logging :as log]
@@ -34,15 +36,20 @@
   "Number of milliseconds to save old messages for"
   5000)
 
-(defn subscribe [router topic]
+(defn subscribe* [router topic]
   (trace/subscribe router (str "&" topic) {}))
+
+(defn subscribe [config topic]
+  (subscribe* (:router config) topic))
 
 (defn send [config topic message]
   (let [blob {:topic topic :data message}
         now (System/currentTimeMillis)]
     (log config "Received new message %s" (pr-str blob))
     (q/add-numbered-message (:recent config) blob now (- now (:retention config)))
-    (trace/trace* topic blob)))
+    (let [channel (cache/get-or-create (:cache config) topic #(lamina/close %))]
+      ;; is a no-op if nobody is listening to this topic
+      (lamina/enqueue channel blob))))
 
 (defn all-recent-messages [config]
   (q/messages-with-numbers (:recent config) (- (System/currentTimeMillis)
@@ -62,12 +69,12 @@
                                                  (re-matches regex (:topic blob)))
                                                messages))))
                  :task-queue q, :payload second :timestamp first})]
-    (-> (subscribe router topic)
+    (-> (subscribe* router topic)
         (siphon channel))
     (lamina.time/advance-until q (first (last messages)))))
 
 (defn send-heartbeats [config client-ip ch]
-  (let [heartbeats (subscribe trace/local-trace-router "hermes:heartbeat")]
+  (let [heartbeats (subscribe config "hermes:heartbeat")]
     (siphon (->> heartbeats
                  (lamina/map* (fn [_]
                                 (log config "Sending heartbeat to %s" client-ip)
@@ -99,7 +106,7 @@
                                  before-topics (lamina/channel)
                                  events (if was-subscribed
                                           (lamina/closed-channel)
-                                          (subscribe trace/local-trace-router topic))]
+                                          (subscribe config topic))]
                              (siphon (lamina/map* (fn [obj]
                                                     (assoc obj :subscription topic))
                                                   before-topics)
@@ -129,9 +136,15 @@
                      (log/error e (format "Error in %s server" server-type)))))))
 
 (defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
-  (let [config (assoc config
+  (let [channel-cache (cache/channel-cache lamina/channel)
+        router (router/trace-router {:generator (fn [{:keys [pattern]}]
+                                                  (cache/get-or-create channel-cache
+                                                                       pattern nil))})
+        config (assoc config
                  :recent (q/numbered-message-buffer)
-                 :retention (or message-retention default-message-retention))
+                 :retention (or message-retention default-message-retention)
+                 :cache channel-cache
+                 :router router)
         websocket (http/start-http-server (topic-listener config)
                                           {:port (or websocket-port default-websocket-port)
                                            :websocket true
