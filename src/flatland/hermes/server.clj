@@ -11,15 +11,16 @@
             [lamina.time]
             [clojure.string :as s]
             [clojure.tools.logging :as log]
+            [clojure.tools.macro :refer [macrolet]]
             [compojure.core :refer [routes PUT]])
   (:import (java.text SimpleDateFormat)
            (java.util Date)))
 
-(defn log [config & args]
-  (when (:debug config)
-    (.println System/out (format "%s - %s"
-                                 (.format (SimpleDateFormat. "HH:mm:ss") (Date.))
-                                 (apply format args)))))
+(defmacro log [config & args]
+  `(when (:debug ~config)
+     (.println System/out (format "%s - %s"
+                                  (.format (SimpleDateFormat. "HH:mm:ss") (Date.))
+                                  (format ~@args)))))
 
 (def default-websocket-port
   "The port on which hermes accepts message subscriptions."
@@ -32,6 +33,9 @@
 (def default-message-retention
   "Number of milliseconds to save old messages for"
   5000)
+
+(defn subscribe [router topic]
+  (trace/subscribe router (str "&" topic) {}))
 
 (defn send [config topic message]
   (let [blob {:topic topic :data message}
@@ -58,49 +62,50 @@
                                                  (re-matches regex (:topic blob)))
                                                messages))))
                  :task-queue q, :payload second :timestamp first})]
-    (-> (trace/subscribe router topic {})
+    (-> (subscribe router topic)
         (siphon channel))
     (lamina.time/advance-until q (first (last messages)))))
 
-(defn send-heartbeats [log client-ip ch]
-  (let [heartbeats (trace/subscribe trace/local-trace-router "hermes:heartbeat" {})]
+(defn send-heartbeats [config client-ip ch]
+  (let [heartbeats (subscribe trace/local-trace-router "hermes:heartbeat")]
     (siphon (->> heartbeats
                  (lamina/map* (fn [_]
-                                (log "Sending heartbeat to %s" client-ip)
+                                (log config "Sending heartbeat to %s" client-ip)
                                 "")))
             ch)))
 
 (defn topic-listener [config]
-  (fn [ch handshake]
-    (let [client-ip (:remote-addr handshake)
-          subscriptions (ref #{})
-          log (partial log config)
-          outgoing (lamina/channel)]
-      (log "Incoming connection from %s" client-ip)
-      (send-heartbeats log client-ip ch)
-      (lamina/on-closed ch #(log "Client %s disconnected" client-ip))
-      (-> outgoing
-          (->> (lamina/map* (fn [msg]
-                              (log "Sending %s to %s" (pr-str msg) client-ip)
-                              (formats/encode-json->string msg))))
-          (siphon ch))
-      (-> ch
-          (->> (lamina/map* formats/bytes->string) ;; some clients erroneously send binary frames
-               (lamina/remove* empty?)) ;; sometimes we get empty frames, which we'll just ignore
-          (receive-all (fn [topic]
-                         (log "%s subscribed to %s" client-ip topic)
-                         (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
-                                                        (alter subscriptions conj topic)))
-                               before-topics (lamina/channel)
-                               events (if was-subscribed
-                                        (lamina/closed-channel)
-                                        (trace/subscribe trace/local-trace-router topic {}))]
-                           (siphon (lamina/map* (fn [obj]
-                                                  (assoc obj :subscription topic))
-                                                before-topics)
-                                   outgoing)
-                           (siphon events before-topics)
-                           (replay-recent config before-topics topic))))))))
+  (macrolet [(log* [& args]
+               `(log ~'config ~@args))]
+    (fn [ch handshake]
+      (let [client-ip (:remote-addr handshake)
+            subscriptions (ref #{})
+            outgoing (lamina/channel)]
+        (log* "Incoming connection from %s" client-ip)
+        (send-heartbeats config client-ip ch)
+        (lamina/on-closed ch #(log* "Client %s disconnected" client-ip))
+        (-> outgoing
+            (->> (lamina/map* (fn [msg]
+                                (log* "Sending %s to %s" (pr-str msg) client-ip)
+                                (formats/encode-json->string msg))))
+            (siphon ch))
+        (-> ch
+            (->> (lamina/map* formats/bytes->string) ;; some clients erroneously send binary frames
+                 (lamina/remove* empty?)) ;; sometimes we get empty frames, which we'll just ignore
+            (receive-all (fn [topic]
+                           (log* "%s subscribed to %s" client-ip topic)
+                           (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
+                                                          (alter subscriptions conj topic)))
+                                 before-topics (lamina/channel)
+                                 events (if was-subscribed
+                                          (lamina/closed-channel)
+                                          (subscribe trace/local-trace-router topic))]
+                             (siphon (lamina/map* (fn [obj]
+                                                    (assoc obj :subscription topic))
+                                                  before-topics)
+                                     outgoing)
+                             (siphon events before-topics)
+                             (replay-recent config before-topics topic)))))))))
 
 (defn heartbeat-worker [{:keys [heartbeat heartbeat-ms] :or {heartbeat true,
                                                              heartbeat-ms (* 60 1000)}
