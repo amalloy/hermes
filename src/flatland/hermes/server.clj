@@ -76,10 +76,12 @@
         router (trace/trace-router
                 {:generator (fn [{:keys [pattern]}]
                               (let [regex (glob->regex pattern)]
-                                (apply lamina/closed-channel
-                                       (filter (fn [[timestamp blob]]
-                                                 (re-matches regex (:topic blob)))
-                                               messages))))
+                                (doto (lamina/channel* :description (str "replay: " pattern))
+                                  #(apply lamina/enqueue %
+                                          (filter (fn [[timestamp blob]]
+                                                    (re-matches regex (:topic blob)))
+                                                  messages))
+                                  lamina/close)))
                  :task-queue q, :payload second :timestamp first})]
     (-> (subscribe* router topic)
         (siphon channel))
@@ -99,7 +101,7 @@
     (fn [ch handshake]
       (let [client-ip (:remote-addr handshake)
             subscriptions (ref #{})
-            outgoing (lamina/channel)]
+            outgoing (lamina/channel* :descrption (str "outgoing: " client-ip))]
         (log* "Incoming connection from %s" client-ip)
         (trace/trace :hermes:connect {:client client-ip})
         (send-heartbeats config client-ip ch)
@@ -121,7 +123,9 @@
                                                            :topic topic})
                            (let [was-subscribed (dosync (returning (contains? @subscriptions topic)
                                                           (alter subscriptions conj topic)))
-                                 before-topics (lamina/channel)
+                                 before-topics (lamina/channel* :description
+                                                                (format "before-topics: %s=%s"
+                                                                        client-ip topic))
                                  events (if was-subscribed
                                           (lamina/closed-channel)
                                           (subscribe config topic))]
@@ -148,7 +152,7 @@
                         "Broken pipe"
                         "timed out"]]
   (defn error-channel [server-type]
-    (doto (lamina/channel)
+    (doto (lamina/channel* "error-channel")
       (receive-all (fn [^Throwable e]
                      (if (and (instance? java.io.IOException e)
                               (let [message (.getMessage e)]
@@ -158,7 +162,9 @@
                        (log/error e (format "Error in %s server" server-type))))))))
 
 (defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
-  (let [channel-cache (cache/channel-cache lamina/channel)
+  (let [channel-cache (cache/channel-cache (fn [topic]
+                                             (lamina/channel*
+                                              :description (format "cache: %s" topic))))
         router (router/trace-router {:generator (fn [{:keys [pattern]}]
                                                   (cache/get-or-create channel-cache
                                                                        pattern nil))})
