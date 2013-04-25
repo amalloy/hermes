@@ -3,7 +3,7 @@ require 'faraday'
 require 'faraday_middleware'
 
 class Hermes
-  attr_reader :http, :ns
+  attr_reader :http
 
   def initialize(url = 'http://localhost:2960')
     @http = Faraday.new(:url => url) do |faraday|
@@ -17,28 +17,9 @@ class Hermes
     URI.escape(topic).gsub(':', '%3A')
   end
 
-  def publish(topic, absolute, data = nil, &block)
-    # absolute is an optional argument
-    data, absolute = absolute, nil if data.nil? and block.nil?
-
+  def publish(topic, data = {}, &block)
     data = block.call if block
-    topic = "#{ns}#{topic}" if ns and not absolute
     http.put(escape_topic(topic), data)
-  end
-
-  def ns(&block)
-    if block
-      @default_ns = block
-    else
-      @ns || (@default_ns && @default_ns.call)
-    end
-  end
-
-  def namespace(ns)
-    @ns, old = ns, @ns
-    yield
-  ensure
-    @ns = old
   end
 
   def self.default(default = nil)
@@ -48,9 +29,5 @@ class Hermes
 
   def self.publish(*args, &block)
     default.publish(*args, &block)
-  end
-
-  def self.namespace(ns, &block)
-    default.namespace(ns, &block)
   end
 end
