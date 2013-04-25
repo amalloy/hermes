@@ -1,5 +1,5 @@
 (ns flatland.hermes.server
-  (:refer-clojure :exclude [send])
+  (:refer-clojure :rename {send send-agent})
   (:use ring.middleware.format-params
         ring.middleware.keyword-params)
   (:require [flatland.hermes.queue :as q]
@@ -18,11 +18,17 @@
   (:import (java.text SimpleDateFormat)
            (java.util Date)))
 
+(let [worker (agent nil)]
+  (defn log* [msg & args]
+    (send-agent worker (fn [_]
+                         (.print System/out (.format (SimpleDateFormat. "HH:mm:ss") (Date.)))
+                         (.print System/out " - ")
+                         (.printf System/out msg (into-array Object args))
+                         (.println System/out)))))
+
 (defmacro log [config & args]
   `(when (:debug ~config)
-     (.println System/out (format "%s - %s"
-                                  (.format (SimpleDateFormat. "HH:mm:ss") (Date.))
-                                  (format ~@args)))))
+     (log* ~@args)))
 
 (def default-websocket-port
   "The port on which hermes accepts message subscriptions."
