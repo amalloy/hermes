@@ -144,14 +144,18 @@
       (fn cancel []
         (future-cancel worker)))))
 
-(defn error-channel [server-type]
-  (doto (lamina/channel)
-    (receive-all (fn [^Throwable e]
-                   (if (and (instance? java.io.IOException e)
-                            (-> (.getMessage e)
-                                (.contains "reset by peer")))
-                     nil ;; ignore error
-                     (log/error e (format "Error in %s server" server-type)))))))
+(let [ignorable-errors ["reset by peer"
+                        "Broken pipe"
+                        "timed out"]]
+  (defn error-channel [server-type]
+    (doto (lamina/channel)
+      (receive-all (fn [^Throwable e]
+                     (if (and (instance? java.io.IOException e)
+                              (let [message (.getMessage e)]
+                                (some #(.contains message %)
+                                      ignorable-errors)))
+                       nil ;; ignore error
+                       (log/error e (format "Error in %s server" server-type))))))))
 
 (defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
   (let [channel-cache (cache/channel-cache lamina/channel)
