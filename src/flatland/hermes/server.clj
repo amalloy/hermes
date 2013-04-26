@@ -152,7 +152,7 @@
                         "Broken pipe"
                         "timed out"]]
   (defn error-channel [server-type]
-    (doto (lamina/channel* "error-channel")
+    (doto (lamina/channel* :description "error-channel")
       (receive-all (fn [^Throwable e]
                      (if (and (instance? java.io.IOException e)
                               (let [message (.getMessage e)]
