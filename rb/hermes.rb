@@ -21,13 +21,4 @@ class Hermes
     data = block.call if block
     http.put(escape_topic(topic), data)
   end
-
-  def self.default(default = nil)
-    @default = Hermes.new(default) if default
-    @default ||= Hermes.new
-  end
-
-  def self.publish(*args, &block)
-    default.publish(*args, &block)
-  end
 end
