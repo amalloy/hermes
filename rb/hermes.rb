@@ -3,6 +3,13 @@ require 'faraday'
 require 'faraday_middleware'
 
 class Hermes
+  class NetworkException < StandardError
+    attr_reader :cause
+    def initialize(cause)
+      super("#{cause.class.name}: #{cause.message}") if @cause = cause
+    end
+  end
+
   attr_reader :http
 
   def initialize(url = 'http://localhost:2960')
@@ -10,6 +17,8 @@ class Hermes
       faraday.request :json
       faraday.adapter Faraday.default_adapter
     end
+  rescue Exception => e
+    raise NetworkException.new(e)
   end
 
   def escape_topic(topic)
@@ -19,6 +28,11 @@ class Hermes
 
   def publish(topic, data = {}, &block)
     data = block.call if block
-    http.put(escape_topic(topic), data)
+    topic = escape_topic(topic)
+    begin
+      http.put(topic, data)
+    rescue Exception => e
+      raise NetworkException.new(e)
+    end
   end
 end
