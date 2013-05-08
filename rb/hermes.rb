@@ -15,7 +15,7 @@ class Hermes
   def initialize(url = 'http://localhost:2960')
     @http = Faraday.new(:url => url) do |faraday|
       faraday.request :json
-      faraday.adapter Faraday.default_adapter
+      faraday.adapter Hermes.adapter
     end
   rescue Exception => e
     raise NetworkException.new(e)
@@ -34,5 +34,10 @@ class Hermes
     rescue Exception => e
       raise NetworkException.new(e)
     end
+  end
+
+  def self.adapter(adapter = nil)
+    @adapter = adapter if adapter
+    @adapter ||= Faraday::Adapter::EMSynchrony
   end
 end
