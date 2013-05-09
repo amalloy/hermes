@@ -5,12 +5,15 @@
   (:require [flatland.hermes.queue :as q]
             [flatland.useful.utils :refer [returning]]
             [aleph.http :as http]
+            [aleph.tcp :as tcp]
             [aleph.formats :as formats]
+            [gloss.core :as gloss]
             [lamina.trace :as trace]
             [lamina.trace.router :as router]
             [lamina.core :as lamina :refer [siphon receive-all]]
             [lamina.cache :as cache]
             [lamina.time]
+            [lamina.connections :as connection]
             [clojure.string :as s]
             [clojure.tools.logging :as log]
             [clojure.tools.macro :refer [macrolet]]
@@ -95,6 +98,37 @@
                                 "")))
             ch)))
 
+(defn telemetry-channel [host port]
+  (tcp/tcp-client {:host host :port port
+                   :delimiters ["\r\n" "\n"]
+                   :frame [(gloss/string :utf-8 :delimiters [" "])
+                           (gloss/compile-frame (gloss/string :utf-8)
+                                                formats/encode-json->string
+                                                identity)]}))
+
+(defn report-telemetry [host port]
+  (let [client-counter (lamina/channel)]
+    (lamina/join (lamina/map* (constantly 1)
+                              (subscribe* trace/local-trace-router "hermes:connect"))
+                 client-counter)
+    (lamina/join (lamina/map* (constantly -1)
+                              (subscribe* trace/local-trace-router "hermes:disconnect"))
+                 client-counter)
+    (let [totals (doto (lamina/reductions* + 0 client-counter)
+                   (lamina/ground))
+          telemetry-server (connection/persistent-connection
+                            #(telemetry-channel host port)
+                            {:on-connected (fn [ch]
+                                             (lamina/ground ch) ;; ignore input from server
+                                             (lamina/join (lamina/map* (fn [count]
+                                                                         ["performance:hermes:client-count" {:client-count count}])
+                                                                       totals)
+                                                          ch))})]
+      (telemetry-server)
+      (fn shutdown []
+        (lamina/close client-counter)
+        (connection/close-connection telemetry-server)))))
+
 (defn topic-listener [config]
   (macrolet [(log* [& args]
                `(log ~'config ~@args))]
@@ -161,7 +195,8 @@
                        nil ;; ignore error
                        (log/error e (format "Error in %s server" server-type))))))))
 
-(defn init [{:keys [heartbeat-ms http-port websocket-port message-retention] :as config}]
+(defn init [{:keys [heartbeat-ms http-port websocket-port message-retention telemetry]
+             :as config}]
   (let [channel-cache (cache/channel-cache (fn [topic]
                                              (lamina/channel*
                                               :description (format "cache: %s" topic))))
@@ -173,7 +208,9 @@
                  :retention (or message-retention default-message-retention)
                  :cache channel-cache
                  :router router)
-        websocket (http/start-http-server (topic-listener config)
+        websocket (http/start-http-server (http/wrap-ring-handler
+                                           (http/wrap-websocket-handler
+                                            (topic-listener config)))
                                           {:port (or websocket-port default-websocket-port)
                                            :websocket true
                                            :probes {:error (error-channel "websocket")}})
@@ -188,8 +225,12 @@
                   http/wrap-ring-handler)
               {:port (or http-port default-http-port)
                :probes {:error (error-channel "http")}})
-        heartbeat (heartbeat-worker config)]
+        heartbeat (heartbeat-worker config)
+        telemetry (if telemetry
+                    (report-telemetry (:host telemetry) (:port telemetry))
+                    (constantly nil))]
     {:shutdown (fn shutdown []
+                 (telemetry)
                  (heartbeat)
                  (websocket)
                  (http))
